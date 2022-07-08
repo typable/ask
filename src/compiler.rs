@@ -179,8 +179,11 @@ impl Compiler {
                             }
                             "jif" => {
                                 let label = args.next().unwrap();
-                                let value = args.next().unwrap().parse::<usize>().unwrap();
-                                OpKind::Jif(label.clone(), value)
+                                OpKind::Jif(label.clone())
+                            }
+                            "jel" => {
+                                let label = args.next().unwrap();
+                                OpKind::Jel(label.clone())
                             }
                             "out" => {
                                 let key = args.next().unwrap().clone();

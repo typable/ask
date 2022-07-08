@@ -6,7 +6,7 @@ mov z 10
   add i x
   jmp do
   cmp i 3
-  jif lo 0
+  jel lo
 end
 
 :do

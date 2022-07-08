@@ -78,12 +78,30 @@ impl Runtime {
                     self.memory
                         .insert("#".to_string(), if *val.unwrap() == *value { 1 } else { 0 });
                 }
-                OpKind::Jif(label, value) => {
+                OpKind::Jif(label) => {
                     let code = self.memory.remove("#");
                     if code.is_none() {
                         return Err(exe.throw_at(RuntimeErrorKind::NoCompare, op, 0));
                     }
-                    if code.unwrap() == *value {
+                    if code.unwrap() == 1 {
+                        let pos = self.pins.get(label);
+                        if pos.is_none() {
+                            return Err(exe.throw_at(
+                                RuntimeErrorKind::NoPin(label.clone()),
+                                op,
+                                1,
+                            ));
+                        }
+                        self.stack.push(i);
+                        i = *pos.unwrap();
+                    }
+                }
+                OpKind::Jel(label) => {
+                    let code = self.memory.remove("#");
+                    if code.is_none() {
+                        return Err(exe.throw_at(RuntimeErrorKind::NoCompare, op, 0));
+                    }
+                    if code.unwrap() == 0 {
                         let pos = self.pins.get(label);
                         if pos.is_none() {
                             return Err(exe.throw_at(
