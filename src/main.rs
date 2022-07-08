@@ -10,9 +10,9 @@ fn main() {
     let path = args.next().expect("No file path provided!");
     let raw = fs::read_to_string(path).expect("Unable to read file!");
     let compiler = Compiler::default();
-    let executable = compiler.compile(&raw);
+    let exe = compiler.compile(&raw);
     let mut runtime = Runtime::default();
-    if let Err(err) = runtime.execute(executable) {
+    if let Err(err) = runtime.execute(exe) {
         println!("{}", err);
     }
 }

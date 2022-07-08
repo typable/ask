@@ -26,6 +26,7 @@ impl fmt::Display for RuntimeError {
             RuntimeErrorKind::DuplicatePin(label) => {
                 format!("Pin with name '{}' already in use!", label)
             }
+            RuntimeErrorKind::NoReturn => "No pin to jump back to!".to_string(),
         };
         write!(
             f,
@@ -54,4 +55,5 @@ pub enum RuntimeErrorKind {
     NoCompare,
     NoPin(Label),
     DuplicatePin(Label),
+    NoReturn,
 }

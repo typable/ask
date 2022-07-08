@@ -38,9 +38,12 @@ pub enum OpKind {
     Add(Key, Key),
     Sub(Key, Key),
     Cmp(Key, Value),
-    Jmp(Label, Value),
+    Jif(Label, Value),
     Out(Key),
     Utf(Key),
+    Jmp(Label),
+    Ret,
+    End,
 }
 
 #[derive(Debug, Clone)]

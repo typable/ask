@@ -177,10 +177,10 @@ impl Compiler {
                                 let value = args.next().unwrap().parse::<usize>().unwrap();
                                 OpKind::Cmp(key, value)
                             }
-                            "jmp" => {
+                            "jif" => {
                                 let label = args.next().unwrap();
                                 let value = args.next().unwrap().parse::<usize>().unwrap();
-                                OpKind::Jmp(label.clone(), value)
+                                OpKind::Jif(label.clone(), value)
                             }
                             "out" => {
                                 let key = args.next().unwrap().clone();
@@ -190,6 +190,12 @@ impl Compiler {
                                 let key = args.next().unwrap().clone();
                                 OpKind::Utf(key)
                             }
+                            "jmp" => {
+                                let label = args.next().unwrap();
+                                OpKind::Jmp(label.clone())
+                            }
+                            "ret" => OpKind::Ret,
+                            "end" => OpKind::End,
                             _ => unreachable!(),
                         };
                         ops.push(Op {

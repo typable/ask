@@ -4,8 +4,12 @@ mov z 10
 
 :lo
   add i x
+  jmp do
   cmp i 3
-  jmp lo 0
+  jif lo 0
+end
 
-out i
-utf z
+:do
+  out i
+  utf z
+  ret
