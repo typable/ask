@@ -17,7 +17,7 @@ impl Runtime {
         for (i, op) in exe.ops.iter().enumerate() {
             if let OpKind::Pin(label) = &op.kind {
                 if self.pins.get(label).is_some() {
-                    return Err(exe.throw_at(RuntimeErrorKind::DuplicatePin(label.clone()), op, 2));
+                    return Err(exe.throw_at(RuntimeErrorKind::DuplicatePin(label.clone()), op, 1));
                 }
                 self.pins.insert(label.clone(), i);
             }
