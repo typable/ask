@@ -3,9 +3,7 @@ use std::collections::HashMap;
 use crate::error::RuntimeError;
 use crate::error::RuntimeErrorKind;
 use crate::Executable;
-use crate::Op;
 use crate::OpKind;
-use crate::TokenKind;
 
 #[derive(Default)]
 pub struct Runtime {
@@ -14,36 +12,68 @@ pub struct Runtime {
 }
 
 impl Runtime {
-    pub fn execute(&mut self, executable: Executable) -> Result<(), RuntimeError> {
+    pub fn execute(&mut self, exe: Executable) -> Result<(), RuntimeError> {
         let mut i = 0;
-        while i < executable.ops.len() {
-            let op = &executable.ops[i];
+        while i < exe.ops.len() {
+            let op = &exe.ops[i];
             match &op.kind {
                 OpKind::Pin(label) => {
+                    if self.pins.get(label).is_some() {
+                        return Err(exe.throw_at(
+                            RuntimeErrorKind::DuplicatePin(label.clone()),
+                            op,
+                            2,
+                        ));
+                    }
                     self.pins.insert(label.clone(), i);
                 }
                 OpKind::Mov(key, value) => {
                     self.memory.insert(key.clone(), *value);
                 }
                 OpKind::Add(key_a, key_b) => {
-                    let val_a = self.memory.get(key_a).unwrap();
-                    let val_b = self.memory.get(key_b).unwrap();
-                    self.memory.insert(key_a.clone(), val_a + val_b);
+                    let val_a = self.memory.get(key_a);
+                    if val_a.is_none() {
+                        return Err(exe.throw_at(
+                            RuntimeErrorKind::Undefined(key_a.clone()),
+                            op,
+                            1,
+                        ));
+                    }
+                    let val_b = self.memory.get(key_b);
+                    if val_b.is_none() {
+                        return Err(exe.throw_at(
+                            RuntimeErrorKind::Undefined(key_b.clone()),
+                            op,
+                            2,
+                        ));
+                    }
+                    self.memory
+                        .insert(key_a.clone(), val_a.unwrap() + val_b.unwrap());
                 }
                 OpKind::Sub(key_a, key_b) => {
-                    let val_a = self.memory.get(key_a).unwrap();
-                    let val_b = self.memory.get(key_b).unwrap();
-                    self.memory.insert(key_a.clone(), val_a - val_b);
+                    let val_a = self.memory.get(key_a);
+                    if val_a.is_none() {
+                        return Err(exe.throw_at(
+                            RuntimeErrorKind::Undefined(key_a.clone()),
+                            op,
+                            1,
+                        ));
+                    }
+                    let val_b = self.memory.get(key_b);
+                    if val_b.is_none() {
+                        return Err(exe.throw_at(
+                            RuntimeErrorKind::Undefined(key_b.clone()),
+                            op,
+                            2,
+                        ));
+                    }
+                    self.memory
+                        .insert(key_a.clone(), val_a.unwrap() - val_b.unwrap());
                 }
                 OpKind::Cmp(key, value) => {
                     let val = self.memory.get(key);
                     if val.is_none() {
-                        return Err(throw_error(
-                            RuntimeErrorKind::Undefined(key.clone()),
-                            op,
-                            &executable.raw,
-                            1,
-                        ));
+                        return Err(exe.throw_at(RuntimeErrorKind::Undefined(key.clone()), op, 1));
                     }
                     self.memory
                         .insert("#".to_string(), if *val.unwrap() == *value { 1 } else { 0 });
@@ -51,38 +81,31 @@ impl Runtime {
                 OpKind::Jmp(label, value) => {
                     let code = self.memory.remove("#");
                     if code.is_none() {
-                        return Err(throw_error(
-                            RuntimeErrorKind::NoCompare,
-                            op,
-                            &executable.raw,
-                            0,
-                        ));
+                        return Err(exe.throw_at(RuntimeErrorKind::NoCompare, op, 0));
                     }
                     if code.unwrap() == *value {
-                        i = *self.pins.get(label).unwrap();
+                        let pos = self.pins.get(label);
+                        if pos.is_none() {
+                            return Err(exe.throw_at(
+                                RuntimeErrorKind::NoPin(label.clone()),
+                                op,
+                                1,
+                            ));
+                        }
+                        i = *pos.unwrap();
                     }
                 }
                 OpKind::Out(key) => {
                     let val = self.memory.get(key);
                     if val.is_none() {
-                        return Err(throw_error(
-                            RuntimeErrorKind::Undefined(key.clone()),
-                            op,
-                            &executable.raw,
-                            1,
-                        ));
+                        return Err(exe.throw_at(RuntimeErrorKind::Undefined(key.clone()), op, 1));
                     }
                     print!("{}", val.unwrap());
                 }
                 OpKind::Utf(key) => {
                     let val = self.memory.get(key);
                     if val.is_none() {
-                        return Err(throw_error(
-                            RuntimeErrorKind::Undefined(key.clone()),
-                            op,
-                            &executable.raw,
-                            1,
-                        ));
+                        return Err(exe.throw_at(RuntimeErrorKind::Undefined(key.clone()), op, 1));
                     }
                     print!("{}", String::from_utf8_lossy(&[*val.unwrap() as u8]));
                 }
@@ -90,21 +113,5 @@ impl Runtime {
             i += 1;
         }
         Ok(())
-    }
-}
-
-fn throw_error(kind: RuntimeErrorKind, op: &Op, raw: &str, index: usize) -> RuntimeError {
-    let token = &op.tokens[index];
-    let (y, _) = token.clone().pos;
-    let lines = raw.lines().collect::<Vec<_>>();
-    let length = match &token.kind {
-        TokenKind::Symbol(symbol) => symbol.len(),
-        _ => 1,
-    };
-    RuntimeError {
-        kind,
-        line: lines[y].to_string(),
-        pos: token.clone().pos,
-        len: length,
     }
 }

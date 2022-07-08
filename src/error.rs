@@ -3,6 +3,7 @@ use std::fmt;
 use crate::color;
 use crate::Color;
 use crate::Key;
+use crate::Label;
 use crate::Pos;
 
 pub struct CompileError;
@@ -21,6 +22,10 @@ impl fmt::Display for RuntimeError {
         let message = match &self.kind {
             RuntimeErrorKind::Undefined(key) => format!("'{}' is not defined!", key),
             RuntimeErrorKind::NoCompare => "'cmp' operation before expected!".to_string(),
+            RuntimeErrorKind::NoPin(label) => format!("No pin with name '{}' found!", label),
+            RuntimeErrorKind::DuplicatePin(label) => {
+                format!("Pin with name '{}' already in use!", label)
+            }
         };
         write!(
             f,
@@ -47,4 +52,6 @@ impl fmt::Display for RuntimeError {
 pub enum RuntimeErrorKind {
     Undefined(Key),
     NoCompare,
+    NoPin(Label),
+    DuplicatePin(Label),
 }

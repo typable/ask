@@ -4,6 +4,9 @@ mod runtime;
 
 pub mod error;
 
+use error::RuntimeError;
+use error::RuntimeErrorKind;
+
 pub use color::Color;
 pub use compiler::Compiler;
 pub use runtime::Runtime;
@@ -65,4 +68,22 @@ pub struct Token {
 pub struct Executable {
     pub ops: Vec<Op>,
     pub raw: String,
+}
+
+impl Executable {
+    pub fn throw_at(&self, kind: RuntimeErrorKind, op: &Op, index: usize) -> RuntimeError {
+        let token = &op.tokens[index];
+        let (y, _) = token.clone().pos;
+        let lines = self.raw.lines().collect::<Vec<_>>();
+        let length = match &token.kind {
+            TokenKind::Symbol(symbol) => symbol.len(),
+            _ => 1,
+        };
+        RuntimeError {
+            kind,
+            line: lines[y].to_string(),
+            pos: token.clone().pos,
+            len: length,
+        }
+    }
 }
