@@ -1,31 +1,27 @@
-" newline
 mov z 10
-" space
 mov s 32
 
-" index
 mov i 0
-" increment by
 mov x 1
 
-" print abc
-:lo
-  mov c 97
-  add c i
-  utf c
-  utf s
+:forward
+  jmp print
   add i x
   cmp i 26
-  jmp lo 0
+  jel forward
 utf z
 
-" print abc reversed
-:lo
+:backward
   sub i x
+  jmp print
+  cmp i 0
+  jel backward
+utf z
+end
+
+:print
   mov c 97
   add c i
   utf c
   utf s
-  cmp i 0
-  jmp lo 0
-utf z
+  ret
