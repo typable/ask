@@ -11,21 +11,6 @@ pub use color::Color;
 pub use compiler::Compiler;
 pub use runtime::Runtime;
 
-// #[macro_export]
-// macro_rules! def {
-//     ($($e:tt)*) => {
-//         {
-//             let expr = stringify!($($e)*);
-//             let mut list = expr.split(',').map(|x| x.trim()).collect::<Vec<_>>();
-//             list.pop();
-//             let raw = list.join("\n");
-//             let compiler = ask::Compiler;
-//             let tokens = compiler.tokenize(&raw);
-//             compiler.parse(tokens)
-//         }
-//     }
-// }
-
 pub type Label = String;
 pub type Key = String;
 pub type Value = usize;

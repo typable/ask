@@ -1,3 +1,5 @@
+use crate::error::CompileError;
+use crate::error::CompileErrorKind;
 use crate::Executable;
 use crate::Op;
 use crate::OpKind;
@@ -5,23 +7,26 @@ use crate::Token;
 use crate::TokenKind;
 
 #[derive(Default)]
-pub struct Compiler;
+pub struct Compiler {
+    raw: String,
+}
 
 impl Compiler {
-    pub fn compile(&self, raw: &str) -> Executable {
-        let tokens = self.tokenize(raw);
-        Executable {
-            ops: self.parse(&tokens),
+    pub fn compile(&mut self, raw: &str) -> Result<Executable, CompileError> {
+        self.raw = raw.to_string();
+        let tokens = self.tokenize()?;
+        Ok(Executable {
+            ops: self.parse(&tokens)?,
             raw: raw.to_string(),
-        }
+        })
     }
-    fn tokenize(&self, raw: &str) -> Vec<Token> {
+    fn tokenize(&self) -> Result<Vec<Token>, CompileError> {
         let mut tokens = Vec::new();
         let mut symbol = Vec::new();
         let mut value = Vec::new();
         let mut y = 0;
         let mut x = 0;
-        for c in raw.chars() {
+        for c in self.raw.chars() {
             match c {
                 c if c.is_alphabetic() => {
                     symbol.push(c);
@@ -65,7 +70,17 @@ impl Compiler {
                         pos: (y, x),
                     });
                 }
-                _ => unreachable!(),
+                _ => {
+                    tokens.push(Token {
+                        kind: TokenKind::Symbol(c.to_string()),
+                        pos: (y, x),
+                    });
+                    return Err(self.throw_at(
+                        CompileErrorKind::UnexpectedChar(c),
+                        &tokens,
+                        tokens.len() - 1,
+                    ));
+                }
             }
             x += 1;
         }
@@ -87,9 +102,9 @@ impl Compiler {
             kind: TokenKind::Break,
             pos: (y, x),
         });
-        tokens
+        Ok(tokens)
     }
-    fn parse(&self, tokens: &Vec<Token>) -> Vec<Op> {
+    fn parse(&self, tokens: &Vec<Token>) -> Result<Vec<Op>, CompileError> {
         let mut ops = Vec::new();
         let mut pin = false;
         let mut pin_label = None;
@@ -105,7 +120,11 @@ impl Compiler {
                         continue;
                     }
                     if op_name.is_some() {
-                        panic!();
+                        return Err(self.throw_at(
+                            CompileErrorKind::InvalidLocation,
+                            &tokens_in_line,
+                            0,
+                        ));
                     }
                     pin = true;
                 }
@@ -115,7 +134,11 @@ impl Compiler {
                     }
                     if pin {
                         if pin_label.is_some() {
-                            panic!();
+                            return Err(self.throw_at(
+                                CompileErrorKind::InvalidLocation,
+                                &tokens_in_line,
+                                2,
+                            ));
                         }
                         pin_label = Some(symbol);
                         continue;
@@ -199,7 +222,13 @@ impl Compiler {
                             }
                             "ret" => OpKind::Ret,
                             "end" => OpKind::End,
-                            _ => unreachable!(),
+                            _ => {
+                                return Err(self.throw_at(
+                                    CompileErrorKind::UnknownOp,
+                                    &tokens_in_line,
+                                    0,
+                                ));
+                            }
                         };
                         ops.push(Op {
                             kind: op_kind,
@@ -211,6 +240,26 @@ impl Compiler {
                 }
             }
         }
-        ops
+        Ok(ops)
+    }
+    pub fn throw_at(
+        &self,
+        kind: CompileErrorKind,
+        tokens: &Vec<Token>,
+        index: usize,
+    ) -> CompileError {
+        let token = &tokens[index];
+        let (y, _) = token.clone().pos;
+        let lines = self.raw.lines().collect::<Vec<_>>();
+        let length = match &token.kind {
+            TokenKind::Symbol(symbol) => symbol.len(),
+            _ => 1,
+        };
+        CompileError {
+            kind,
+            line: lines[y].to_string(),
+            pos: token.clone().pos,
+            len: length,
+        }
     }
 }
