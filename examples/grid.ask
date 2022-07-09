@@ -1,0 +1,21 @@
+mov space 32
+mov newline 10
+mov n 1
+mov y 0
+
+:for_y
+  mov x 0
+  mov char 97
+  add char y
+  :for_x
+    utf char
+    utf space
+    add char n
+    add x n
+    cmp x 13
+    jel for_x
+  utf newline
+  add y n
+  cmp y 13
+  jel for_y
+end
