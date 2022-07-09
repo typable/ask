@@ -28,7 +28,7 @@ impl Compiler {
         let mut x = 0;
         for c in self.raw.chars() {
             match c {
-                c if c.is_alphabetic() => {
+                c if c.is_alphabetic() || c == '_' => {
                     symbol.push(c);
                 }
                 c if c.is_alphanumeric() => {
