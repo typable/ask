@@ -3,39 +3,54 @@ mod compiler;
 mod runtime;
 
 pub mod error;
+pub mod op;
 
-use error::RuntimeError;
-use error::RuntimeErrorKind;
+use std::str::FromStr;
+
+use error::CompileError;
+use error::PerformError;
+use op::OpWrap;
 
 pub use color::Color;
 pub use compiler::Compiler;
 pub use runtime::Runtime;
 
-pub type Label = String;
-pub type Key = String;
-pub type Value = usize;
-pub type Pos = (usize, usize);
+#[macro_export]
+macro_rules! unwrap_or_throw {
+    ($option:expr, $err:expr) => {
+        match $option {
+            Some(x) => x,
+            None => return Err($err),
+        }
+    };
+}
 
-#[derive(Debug, Clone)]
-pub enum OpKind {
-    Pin(Label),
-    Mov(Key, Value),
-    Add(Key, Key),
-    Sub(Key, Key),
-    Cmp(Key, Value),
-    Jif(Label),
-    Jel(Label),
-    Out(Key),
-    Utf(Key),
-    Jmp(Label),
-    Ret,
-    End,
+pub type Label = String;
+pub type Pos = String;
+pub type Value = usize;
+
+pub type PerformResult = Result<(), PerformError>;
+
+pub trait Op {
+    fn perform(&self, runtime: &mut Runtime) -> PerformResult;
 }
 
 #[derive(Debug, Clone)]
-pub struct Op {
-    kind: OpKind,
-    tokens: Vec<Token>,
+pub enum Ref {
+    Pos(Pos),
+    Value(usize),
+}
+
+impl FromStr for Ref {
+    type Err = CompileError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let value = s.parse::<Value>();
+        if let Ok(value) = value {
+            return Ok(Ref::Value(value));
+        }
+        Ok(Ref::Pos(s.to_string()))
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -50,29 +65,10 @@ pub enum TokenKind {
 #[derive(Debug, Clone)]
 pub struct Token {
     pub kind: TokenKind,
-    pub pos: Pos,
+    pub pos: (usize, usize),
 }
 
-#[derive(Debug, Clone)]
 pub struct Executable {
-    pub ops: Vec<Op>,
+    pub ops: Vec<OpWrap>,
     pub raw: String,
-}
-
-impl Executable {
-    pub fn throw_at(&self, kind: RuntimeErrorKind, op: &Op, index: usize) -> RuntimeError {
-        let token = &op.tokens[index];
-        let (y, _) = token.clone().pos;
-        let lines = self.raw.lines().collect::<Vec<_>>();
-        let length = match &token.kind {
-            TokenKind::Symbol(symbol) => symbol.len(),
-            _ => 1,
-        };
-        RuntimeError {
-            kind,
-            line: lines[y].to_string(),
-            pos: token.clone().pos,
-            len: length,
-        }
-    }
 }

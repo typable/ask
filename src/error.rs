@@ -2,7 +2,6 @@ use std::fmt;
 
 use crate::color;
 use crate::Color;
-use crate::Key;
 use crate::Label;
 use crate::Pos;
 
@@ -10,17 +9,19 @@ use crate::Pos;
 pub struct CompileError {
     pub kind: CompileErrorKind,
     pub line: String,
-    pub pos: Pos,
+    pub pos: (usize, usize),
     pub len: usize,
 }
 
 impl fmt::Display for CompileError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use CompileErrorKind::*;
         let (y, x) = self.pos;
         let message = match self.kind {
-            CompileErrorKind::UnexpectedChar(c) => format!("Unexpected character '{}'!", c),
-            CompileErrorKind::InvalidLocation => "Invalid location!".to_string(),
-            CompileErrorKind::UnknownOp => "Unknown operation!".to_string(),
+            UnexpectedChar(c) => format!("Unexpected character '{}'!", c),
+            InvalidLocation => "Invalid location!".to_string(),
+            UnknownOp => "Unknown operation!".to_string(),
+            ExpectedArgument => "Expected argument!".to_string(),
         };
         write!(
             f,
@@ -47,21 +48,22 @@ impl fmt::Display for CompileError {
 pub struct RuntimeError {
     pub kind: RuntimeErrorKind,
     pub line: String,
-    pub pos: Pos,
+    pub loc: (usize, usize),
     pub len: usize,
 }
 
 impl fmt::Display for RuntimeError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let (y, x) = self.pos;
+        use RuntimeErrorKind::*;
+        let (y, x) = self.loc;
         let message = match &self.kind {
-            RuntimeErrorKind::Undefined(key) => format!("'{}' is not defined!", key),
-            RuntimeErrorKind::NoCompare => "'cmp' operation before expected!".to_string(),
-            RuntimeErrorKind::NoPin(label) => format!("No pin with name '{}' found!", label),
-            RuntimeErrorKind::DuplicatePin(label) => {
+            Undefined(key) => format!("'{}' is not defined!", key),
+            NoCompare => "'cmp' operation before expected!".to_string(),
+            NoPin(label) => format!("No pin with name '{}' found!", label),
+            DuplicatePin(label) => {
                 format!("Pin with name '{}' already in use!", label)
             }
-            RuntimeErrorKind::NoReturn => "No pin to jump back to!".to_string(),
+            NoReturn => "No pin to jump back to!".to_string(),
         };
         write!(
             f,
@@ -85,15 +87,19 @@ impl fmt::Display for RuntimeError {
 }
 
 #[derive(Debug)]
+pub struct PerformError(pub RuntimeErrorKind);
+
+#[derive(Debug)]
 pub enum CompileErrorKind {
     UnexpectedChar(char),
     UnknownOp,
     InvalidLocation,
+    ExpectedArgument,
 }
 
 #[derive(Debug)]
 pub enum RuntimeErrorKind {
-    Undefined(Key),
+    Undefined(Pos),
     NoCompare,
     NoPin(Label),
     DuplicatePin(Label),

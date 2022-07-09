@@ -1,8 +1,24 @@
+use std::str::FromStr;
+
 use crate::error::CompileError;
 use crate::error::CompileErrorKind;
+use crate::op::Add;
+use crate::op::Cmp;
+use crate::op::End;
+use crate::op::Jel;
+use crate::op::Jif;
+use crate::op::Jmp;
+use crate::op::Mov;
+use crate::op::OpWrap;
+use crate::op::Out;
+use crate::op::Pin;
+use crate::op::Ret;
+use crate::op::Sub;
+use crate::op::Utf;
+use crate::unwrap_or_throw;
 use crate::Executable;
 use crate::Op;
-use crate::OpKind;
+use crate::Ref;
 use crate::Token;
 use crate::TokenKind;
 
@@ -104,7 +120,7 @@ impl Compiler {
         });
         Ok(tokens)
     }
-    fn parse(&self, tokens: &Vec<Token>) -> Result<Vec<Op>, CompileError> {
+    fn parse(&self, tokens: &Vec<Token>) -> Result<Vec<OpWrap>, CompileError> {
         let mut ops = Vec::new();
         let mut pin = false;
         let mut pin_label = None;
@@ -168,9 +184,11 @@ impl Compiler {
                     }
                     if pin_label.is_some() {
                         let label = pin_label.take().unwrap();
-                        ops.push(Op {
-                            kind: OpKind::Pin(label.clone()),
+                        let op = Box::new(Pin(label.clone()));
+                        ops.push(OpWrap {
+                            op,
                             tokens: tokens_in_line.clone(),
+                            pre_init: true,
                         });
                         tokens_in_line.clear();
                         pin = false;
@@ -179,60 +197,152 @@ impl Compiler {
                     if op_name.is_some() {
                         let name = op_name.take().unwrap();
                         let mut args = op_args.drain(..);
-                        let op_kind = match name.as_str() {
+                        let op: Box<dyn Op> = match name.as_str() {
                             "mov" => {
-                                let key = args.next().unwrap().clone();
-                                let value = args.next().unwrap().parse::<usize>().unwrap();
-                                OpKind::Mov(key, value)
+                                let pos = unwrap_or_throw!(
+                                    args.next(),
+                                    self.throw_at(
+                                        CompileErrorKind::ExpectedArgument,
+                                        &tokens_in_line,
+                                        0
+                                    )
+                                );
+                                let refer = unwrap_or_throw!(
+                                    args.next(),
+                                    self.throw_at(
+                                        CompileErrorKind::ExpectedArgument,
+                                        &tokens_in_line,
+                                        0
+                                    )
+                                );
+                                Box::new(Mov(pos.to_string(), Ref::from_str(refer)?))
                             }
                             "add" => {
-                                let key_a = args.next().unwrap().clone();
-                                let key_b = args.next().unwrap().clone();
-                                OpKind::Add(key_a, key_b)
+                                let pos = unwrap_or_throw!(
+                                    args.next(),
+                                    self.throw_at(
+                                        CompileErrorKind::ExpectedArgument,
+                                        &tokens_in_line,
+                                        0
+                                    )
+                                );
+                                let refer = unwrap_or_throw!(
+                                    args.next(),
+                                    self.throw_at(
+                                        CompileErrorKind::ExpectedArgument,
+                                        &tokens_in_line,
+                                        0
+                                    )
+                                );
+                                Box::new(Add(pos.to_string(), Ref::from_str(refer)?))
                             }
                             "sub" => {
-                                let key_a = args.next().unwrap().clone();
-                                let key_b = args.next().unwrap().clone();
-                                OpKind::Sub(key_a, key_b)
+                                let pos = unwrap_or_throw!(
+                                    args.next(),
+                                    self.throw_at(
+                                        CompileErrorKind::ExpectedArgument,
+                                        &tokens_in_line,
+                                        0
+                                    )
+                                );
+                                let refer = unwrap_or_throw!(
+                                    args.next(),
+                                    self.throw_at(
+                                        CompileErrorKind::ExpectedArgument,
+                                        &tokens_in_line,
+                                        0
+                                    )
+                                );
+                                Box::new(Sub(pos.to_string(), Ref::from_str(refer)?))
                             }
                             "cmp" => {
-                                let key = args.next().unwrap().clone();
-                                let value = args.next().unwrap().parse::<usize>().unwrap();
-                                OpKind::Cmp(key, value)
+                                let pos = unwrap_or_throw!(
+                                    args.next(),
+                                    self.throw_at(
+                                        CompileErrorKind::ExpectedArgument,
+                                        &tokens_in_line,
+                                        0
+                                    )
+                                );
+                                let refer = unwrap_or_throw!(
+                                    args.next(),
+                                    self.throw_at(
+                                        CompileErrorKind::ExpectedArgument,
+                                        &tokens_in_line,
+                                        0
+                                    )
+                                );
+                                Box::new(Cmp(pos.to_string(), Ref::from_str(refer)?))
                             }
                             "jif" => {
-                                let label = args.next().unwrap();
-                                OpKind::Jif(label.clone())
+                                let label = unwrap_or_throw!(
+                                    args.next(),
+                                    self.throw_at(
+                                        CompileErrorKind::ExpectedArgument,
+                                        &tokens_in_line,
+                                        0
+                                    )
+                                );
+                                Box::new(Jif(label.to_string()))
                             }
                             "jel" => {
-                                let label = args.next().unwrap();
-                                OpKind::Jel(label.clone())
-                            }
-                            "out" => {
-                                let key = args.next().unwrap().clone();
-                                OpKind::Out(key)
-                            }
-                            "utf" => {
-                                let key = args.next().unwrap().clone();
-                                OpKind::Utf(key)
+                                let label = unwrap_or_throw!(
+                                    args.next(),
+                                    self.throw_at(
+                                        CompileErrorKind::ExpectedArgument,
+                                        &tokens_in_line,
+                                        0
+                                    )
+                                );
+                                Box::new(Jel(label.to_string()))
                             }
                             "jmp" => {
-                                let label = args.next().unwrap();
-                                OpKind::Jmp(label.clone())
+                                let label = unwrap_or_throw!(
+                                    args.next(),
+                                    self.throw_at(
+                                        CompileErrorKind::ExpectedArgument,
+                                        &tokens_in_line,
+                                        0
+                                    )
+                                );
+                                Box::new(Jmp(label.to_string()))
                             }
-                            "ret" => OpKind::Ret,
-                            "end" => OpKind::End,
+                            "out" => {
+                                let refer = unwrap_or_throw!(
+                                    args.next(),
+                                    self.throw_at(
+                                        CompileErrorKind::ExpectedArgument,
+                                        &tokens_in_line,
+                                        0,
+                                    )
+                                );
+                                Box::new(Out(Ref::from_str(refer)?))
+                            }
+                            "utf" => {
+                                let refer = unwrap_or_throw!(
+                                    args.next(),
+                                    self.throw_at(
+                                        CompileErrorKind::ExpectedArgument,
+                                        &tokens_in_line,
+                                        0,
+                                    )
+                                );
+                                Box::new(Utf(Ref::from_str(refer)?))
+                            }
+                            "ret" => Box::new(Ret),
+                            "end" => Box::new(End),
                             _ => {
                                 return Err(self.throw_at(
                                     CompileErrorKind::UnknownOp,
                                     &tokens_in_line,
                                     0,
-                                ));
+                                ))
                             }
                         };
-                        ops.push(Op {
-                            kind: op_kind,
+                        ops.push(OpWrap {
+                            op,
                             tokens: tokens_in_line.clone(),
+                            pre_init: false,
                         });
                         tokens_in_line.clear();
                         continue;
@@ -242,12 +352,7 @@ impl Compiler {
         }
         Ok(ops)
     }
-    pub fn throw_at(
-        &self,
-        kind: CompileErrorKind,
-        tokens: &Vec<Token>,
-        index: usize,
-    ) -> CompileError {
+    pub fn throw_at(&self, kind: CompileErrorKind, tokens: &[Token], index: usize) -> CompileError {
         let token = &tokens[index];
         let (y, _) = token.clone().pos;
         let lines = self.raw.lines().collect::<Vec<_>>();
