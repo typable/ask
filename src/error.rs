@@ -22,6 +22,8 @@ impl fmt::Display for CompileError {
             InvalidLocation => "Invalid location!".to_string(),
             UnknownOp => "Unknown operation!".to_string(),
             ExpectedArgument => "Expected argument!".to_string(),
+            InvalidBlock => "Invalid block!".to_string(),
+            InvalidCast => "Invalid cast!".to_string(),
         };
         write!(
             f,
@@ -95,6 +97,8 @@ pub enum CompileErrorKind {
     UnknownOp,
     InvalidLocation,
     ExpectedArgument,
+    InvalidBlock,
+    InvalidCast,
 }
 
 #[derive(Debug)]

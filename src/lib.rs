@@ -60,6 +60,7 @@ pub enum TokenKind {
     Break,
     Pin,
     Comment,
+    Cast(String),
 }
 
 #[derive(Debug, Clone)]

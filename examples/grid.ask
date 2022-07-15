@@ -3,11 +3,11 @@ mov size 13
 
 :for_y
   mov x 0
-  mov char 97
+  mov char &'a'
   add char y
   :for_x
     utf char
-    utf 32
+    utf &' '
     add char 1
     add x 1
     cmp x size

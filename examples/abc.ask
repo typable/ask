@@ -16,8 +16,8 @@ utf 10
 end
 
 :print
-  mov c 97
+  mov c &'a'
   add c i
   utf c
-  utf 32
+  utf &' '
   ret

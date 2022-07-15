@@ -40,9 +40,15 @@ impl Compiler {
         let mut tokens = Vec::new();
         let mut symbol = Vec::new();
         let mut value = Vec::new();
+        let mut cast = false;
+        let mut block = false;
         let mut y = 0;
         let mut x = 0;
         for c in self.raw.chars() {
+            if cast && block && c != '\'' && c != '\r' && c != '\n' {
+                symbol.push(c);
+                continue;
+            }
             match c {
                 c if c.is_alphabetic() || c == '_' => {
                     symbol.push(c);
@@ -50,7 +56,35 @@ impl Compiler {
                 c if c.is_alphanumeric() => {
                     value.push(c);
                 }
+                '&' => {
+                    cast = true;
+                }
+                '\'' => {
+                    if !block && !cast {
+                        return Err(self.throw_at(
+                            CompileErrorKind::InvalidCast,
+                            &tokens,
+                            tokens.len() - 1,
+                        ));
+                    }
+                    block = !block;
+                }
                 ' ' | '\t' | '\r' | '\n' => {
+                    if cast {
+                        if block {
+                            return Err(self.throw_at(
+                                CompileErrorKind::InvalidBlock,
+                                &tokens,
+                                tokens.len() - 1,
+                            ));
+                        }
+                        tokens.push(Token {
+                            kind: TokenKind::Cast(String::from_iter(symbol.clone())),
+                            pos: (x, y),
+                        });
+                        symbol.clear();
+                        cast = false;
+                    }
                     if !symbol.is_empty() {
                         tokens.push(Token {
                             kind: TokenKind::Symbol(String::from_iter(symbol.clone())),
@@ -160,7 +194,7 @@ impl Compiler {
                         continue;
                     }
                     if op_name.is_some() {
-                        op_args.push(symbol);
+                        op_args.push(symbol.clone());
                         continue;
                     }
                     op_name = Some(symbol);
@@ -170,7 +204,23 @@ impl Compiler {
                         continue;
                     }
                     if op_name.is_some() {
-                        op_args.push(value);
+                        op_args.push(value.clone());
+                    }
+                }
+                TokenKind::Cast(value) => {
+                    if comment {
+                        continue;
+                    }
+                    if op_name.is_some() {
+                        let bytes = value.as_bytes();
+                        if bytes.len() != 1 {
+                            return Err(self.throw_at(
+                                CompileErrorKind::InvalidCast,
+                                &tokens_in_line,
+                                0,
+                            ));
+                        }
+                        op_args.push(bytes[0].to_string());
                     }
                 }
                 TokenKind::Comment => {
@@ -215,7 +265,7 @@ impl Compiler {
                                         0
                                     )
                                 );
-                                Box::new(Mov(pos.to_string(), Ref::from_str(refer)?))
+                                Box::new(Mov(pos.to_string(), Ref::from_str(&refer)?))
                             }
                             "add" => {
                                 let pos = unwrap_or_throw!(
@@ -234,7 +284,7 @@ impl Compiler {
                                         0
                                     )
                                 );
-                                Box::new(Add(pos.to_string(), Ref::from_str(refer)?))
+                                Box::new(Add(pos.to_string(), Ref::from_str(&&refer)?))
                             }
                             "sub" => {
                                 let pos = unwrap_or_throw!(
@@ -253,7 +303,7 @@ impl Compiler {
                                         0
                                     )
                                 );
-                                Box::new(Sub(pos.to_string(), Ref::from_str(refer)?))
+                                Box::new(Sub(pos.to_string(), Ref::from_str(&refer)?))
                             }
                             "cmp" => {
                                 let pos = unwrap_or_throw!(
@@ -272,7 +322,7 @@ impl Compiler {
                                         0
                                     )
                                 );
-                                Box::new(Cmp(pos.to_string(), Ref::from_str(refer)?))
+                                Box::new(Cmp(pos.to_string(), Ref::from_str(&refer)?))
                             }
                             "jif" => {
                                 let label = unwrap_or_throw!(
@@ -316,7 +366,7 @@ impl Compiler {
                                         0,
                                     )
                                 );
-                                Box::new(Out(Ref::from_str(refer)?))
+                                Box::new(Out(Ref::from_str(&refer)?))
                             }
                             "utf" => {
                                 let refer = unwrap_or_throw!(
@@ -327,7 +377,7 @@ impl Compiler {
                                         0,
                                     )
                                 );
-                                Box::new(Utf(Ref::from_str(refer)?))
+                                Box::new(Utf(Ref::from_str(&refer)?))
                             }
                             "ret" => Box::new(Ret),
                             "end" => Box::new(End),
