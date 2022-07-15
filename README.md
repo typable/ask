@@ -65,10 +65,21 @@ Increase pos "n" by 1 as long as it is less than 3.
 
 ### Comments
 
-Use the `"` character at the start of the line to mark it as a comment.
+Use the `"` symbol at the start of the line to mark it as a comment.
 
 Example:
 ```
 " store newline char code
 mov newline 10
+```
+<br>
+
+### Casting
+
+Use the `&` symbol to cast a character into a number.
+
+Example:
+```
+" store letter a
+mov letter_a = &'a'
 ```
